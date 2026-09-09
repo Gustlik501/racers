@@ -32,13 +32,9 @@ void LegoEventQueue::Initialize(LegoU32 p_count)
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	LegoU32 linkCount = p_count;
 	m_freeList = m_events;
-	linkCount--;
-	if (linkCount > 0) {
-		for (LegoU32 i = 0; i < linkCount; i++) {
-			m_events[i].m_next = &m_events[i + 1];
-		}
+	for (LegoU32 i = 0; i < p_count - 1; i++) {
+		m_events[i].m_next = &m_events[i + 1];
 	}
 
 	m_events[p_count - 1].m_next = NULL;
