@@ -515,9 +515,9 @@ void GolBmpFile::LoadSurface(GolSurface* p_texture, LegoU32 p_flags, ColorRGBA* 
 // FUNCTION: LEGORACERS 0x004027d0
 void GolBmpFile::LoadSurfaceFromBuffer(LegoU8* p_buffer, GolSurface* p_texture, LegoU32 p_flags, ColorRGBA* p_colorKey)
 {
-	LegoU32 widthScale = 1;
-	LegoU32 heightScale = 1;
 	GolSurfaceFormat format;
+	LegoS32 widthScale = 1;
+	LegoS32 heightScale = 1;
 
 	if (m_height > p_texture->GetHeight() || m_width > p_texture->GetWidth()) {
 		GOL_FATALERROR_MESSAGE("Invalid image size for given storage");
@@ -548,18 +548,9 @@ void GolBmpFile::LoadSurfaceFromBuffer(LegoU8* p_buffer, GolSurface* p_texture, 
 		ConvertRow(p_buffer, pixels, format);
 
 		if (widthScale > 1) {
-			if (format.m_bitsPerPixel > 14 && format.m_bitsPerPixel <= 16) {
-				LegoU8* dst = pixels + (p_texture->GetWidth() * 2) - 2;
-				LegoU8* src = pixels + (m_width * 2) - 2;
-				for (LegoS32 x = m_width; x > 0; x--) {
-					for (LegoS32 repeat = widthScale; repeat > 0; repeat--) {
-						::memcpy(dst, src, sizeof(LegoU16));
-						dst -= 2;
-					}
-					src -= 2;
-				}
-			}
-			else if (format.m_bitsPerPixel == 8) {
+			LegoU32 bitsPerPixel = format.m_bitsPerPixel;
+			switch (bitsPerPixel) {
+			case 8: {
 				LegoU8* dst = pixels + p_texture->GetWidth() - 1;
 				LegoU8* src = pixels + m_width - 1;
 				for (LegoS32 x = m_width; x > 0; x--) {
@@ -568,18 +559,30 @@ void GolBmpFile::LoadSurfaceFromBuffer(LegoU8* p_buffer, GolSurface* p_texture, 
 					}
 					src--;
 				}
+				break;
+			}
+			case 15:
+			case 16: {
+				LegoU16* dst = reinterpret_cast<LegoU16*>(pixels) + p_texture->GetWidth() - 1;
+				LegoU16* src = reinterpret_cast<LegoU16*>(pixels) + m_width - 1;
+				for (LegoS32 x = m_width; x > 0; x--) {
+					for (LegoS32 repeat = widthScale; repeat > 0; repeat--) {
+						*dst-- = *src;
+					}
+					src--;
+				}
+				break;
+			}
 			}
 		}
 
-		LegoU8* row = pixels;
-		for (LegoU32 repeat = 1; repeat < heightScale; repeat++) {
-			::memcpy(row + rowPitch, row, pitch);
-			row += rowPitch;
+		for (LegoS32 repeat = 1; repeat < heightScale; repeat++) {
+			::memcpy(pixels + rowPitch, pixels, pitch);
 			pixels += rowPitch;
 		}
 
 		p_buffer += m_rowByteStride;
-		pixels = row + rowPitch;
+		pixels += rowPitch;
 	}
 
 	p_texture->UnlockPixels();
